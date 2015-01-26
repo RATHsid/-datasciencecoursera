@@ -1,0 +1,74 @@
+---
+title: "Practical Machine Learning"
+author: "siddharth"
+
+---
+
+```{r}
+#Loading Packages and Data
+library(dplyr)
+library(caret)
+library(randomForest)
+test<-read.csv("pml-testing.csv")
+train<-read.csv("pml-training.csv")
+
+dim(test);dim(train)
+
+#Features to be retained in the Datasets
+nas<-sapply(test, function(x)sum(is.na(x))) #Fnding the number of missing values in the test set
+length(nas)
+nas<-nas[(nas<=10)] #Retaining only those variables with at least 50% known values
+ret_test<-names(nas)
+
+#Cleaning the Test Set
+test1<-subset(test,select=ret_test) #Subsetting the test set with only those variables
+dim(test1)
+
+#Cleaning the Training Set
+ret_train<-names(train)
+com<-intersect(ret_test,ret_train) #Finding the common variables between the cleaned test set and the training set
+train1<-subset(train,select=com) #Subsetting the training set with selected variables
+dim(train1)
+
+#Removing the serial no. variable and adding the predictor variable to the training set
+test1<-test1[,-1]
+train1<-train1[,-1]
+classe<-train[,160]
+train1<-cbind(train1,classe)
+
+#Removing variables based on the context/knowledge of the problem statement
+test1<-test1[,-(1:5)]
+test1<-test1[,-(55)]
+train1<-train1[,-(1:5)]
+
+
+#Creating the training and cross validation set
+inTrain<-createDataPartition(y=train1$classe, p=0.75, list=FALSE)
+training<-train1[inTrain,]
+testing<-train1[-inTrain,]
+
+#Training the model
+model<-randomForest(classe~.,data=training)
+
+#Cross Valdating
+pred1 <- predict(model, testing)
+confusionMatrix(pred1, testing$classe)
+
+
+#Function for output files
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+x<-test1
+
+#Predicting the test set
+answers <- predict(model, newdata=x)
+answers
+pml_write_files(answers)
+
+```
+
